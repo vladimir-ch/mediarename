@@ -54,6 +54,7 @@ func main() {
 
 		tags, err := ReadTags(src)
 		if err != nil {
+			fmt.Printf("error reading tags from %v: %v\n", src, err)
 			continue
 		}
 
