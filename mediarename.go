@@ -42,8 +42,13 @@ func main() {
 
 		src := file.Name()
 		ext := strings.ToLower(filepath.Ext(src))
-		if ext != ".jpg" && ext != ".mov" && ext != ".dng" {
-			// Unsupported extension.
+
+		var supported bool
+		switch ext {
+		case ".jpg", ".dng", ".cr2", ".mov", ".mp4":
+			supported = true
+		}
+		if !supported {
 			continue
 		}
 
