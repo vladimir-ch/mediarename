@@ -66,7 +66,7 @@ func main() {
 		dst := tags.ToFileName()
 		if !*dry {
 			os.Chmod(dst, 0644)
-			os.Chtimes(dst, tags.DateTimeOriginal, tags.DateTimeOriginal)
+			os.Chtimes(dst, tags.DateTimeOriginal.Time, tags.DateTimeOriginal.Time)
 		}
 		if _, err = os.Stat(dst); err == nil {
 			fmt.Println("Destination file", dst, "exists, skipping.")
@@ -79,9 +79,20 @@ func main() {
 	}
 }
 
+type CustomTime struct {
+	time.Time
+}
+
+func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
+	t := strings.Replace(string(b), "\"", "", -1)
+	fmt.Println(t)
+	ct.Time, err = time.Parse(time.RFC1123Z, t)
+	return err
+}
+
 func ReadTags(filename string) (*ExifTags, error) {
-	// Print dates in RFC3339 format.
-	out, err := exec.Command("exiftool", "-j", "-d", "%Y-%m-%dT%H:%M:%SZ", filename).Output()
+	// Print dates in RFC1123Z format.
+	out, err := exec.Command("exiftool", "-j", "-d", "%a, %d %b %Y %T %z", filename).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +107,7 @@ func ReadTags(filename string) (*ExifTags, error) {
 }
 
 type ExifTags struct {
-	DateTimeOriginal time.Time
+	DateTimeOriginal CustomTime
 	FileName         string
 	FileNumber       string
 	Model            string
