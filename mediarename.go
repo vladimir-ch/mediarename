@@ -6,7 +6,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -23,12 +22,18 @@ func main() {
 	var (
 		dry    = flag.Bool("n", false, "Dry run")
 		prefix = flag.String("p", "VCH", "File name prefix")
+		l      = flag.String("l", "UTC", "Shooting location")
 	)
 	flag.Parse()
 
 	_, err := exec.LookPath("exiftool")
 	if err != nil {
 		log.Fatal("exiftool not found")
+	}
+
+	loc, err := time.LoadLocation(*l)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	files, err := ioutil.ReadDir(".")
@@ -58,38 +63,38 @@ func main() {
 			fmt.Printf("error reading tags from %v: %v\n", src, err)
 			continue
 		}
+		if tags.FileName == "" {
+			tags.FileName = src
+		}
 
-		if err = tags.Valid(); err != nil {
-			fmt.Printf("%s: %v, skipping\n", src, err)
+		dst, err := tags.ToFileName(loc)
+		if err != nil {
+			fmt.Printf("error creating destination file name for %s (%v)\n", src, err)
 			continue
 		}
 
-		// Given prefix.
-		// TODO: Make it configurable.
-		dst := *prefix + "_" + tags.ToFileName()
-		if !*dry {
-			os.Chmod(dst, 0644)
-			os.Chtimes(dst, tags.DateTimeOriginal.Time, tags.DateTimeOriginal.Time)
+		t, err := tags.TimeIn(loc)
+		if err != nil {
+			fmt.Printf("error formatting time for %s (%v)\n", src, err)
+			continue
 		}
+
+		dst = *prefix + "_" + dst
 		if _, err = os.Stat(dst); err == nil {
 			fmt.Println("Destination file", dst, "exists, skipping.")
+			if !*dry {
+				os.Chmod(dst, 0644)
+				os.Chtimes(dst, t, t)
+			}
 			continue
 		}
 		if !*dry {
 			os.Rename(src, dst)
+			os.Chmod(dst, 0644)
+			os.Chtimes(dst, t, t)
 		}
 		fmt.Println("Renamed", src, "to", dst)
 	}
-}
-
-type CustomTime struct {
-	time.Time
-}
-
-func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
-	t := strings.Replace(string(b), "\"", "", -1)
-	ct.Time, err = time.Parse("2006:01:02 15:04:05", t)
-	return err
 }
 
 func ReadTags(filename string) (*ExifTags, error) {
@@ -108,27 +113,28 @@ func ReadTags(filename string) (*ExifTags, error) {
 }
 
 type ExifTags struct {
-	DateTimeOriginal CustomTime
+	DateTimeOriginal string
 	FileName         string
 	FileNumber       string
 	Model            string
 }
 
-func (tags *ExifTags) Valid() error {
-	switch {
-	case tags.FileName == "":
-		return errors.New("no FileName tag")
-	case tags.DateTimeOriginal.IsZero():
-		return errors.New("no DateTimeOriginal tag")
-	default:
-		return nil
+func (tags *ExifTags) TimeIn(loc *time.Location) (time.Time, error) {
+	t, err := time.ParseInLocation("2006:01:02 15:04:05", tags.DateTimeOriginal, loc)
+	if err != nil {
+		return time.Time{}, err
 	}
+	return t, nil
 }
 
-func (tags *ExifTags) ToFileName() string {
-	t := tags.DateTimeOriginal.Format(time.RFC3339)
-	// Remove : from the file name because of Windows.
-	name := strings.Replace(t, ":", ".", -1)
+func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
+	t, err := tags.TimeIn(loc)
+	if err != nil {
+		return "", err
+	}
+
+	ft := t.Format(time.RFC3339)
+	name := strings.Replace(ft, ":", ".", -1) // Remove : from the file name because of Windows.
 
 	if tags.Model != "" {
 		name += "_" + strings.Replace(tags.Model, " ", "", -1)
@@ -148,5 +154,5 @@ func (tags *ExifTags) ToFileName() string {
 		name += "_" + n
 	}
 
-	return name + ext
+	return name + ext, nil
 }
