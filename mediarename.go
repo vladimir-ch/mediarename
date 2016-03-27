@@ -21,7 +21,8 @@ import (
 
 func main() {
 	var (
-		dry = flag.Bool("n", false, "Dry run")
+		dry    = flag.Bool("n", false, "Dry run")
+		prefix = flag.String("p", "VCH", "File name prefix")
 	)
 	flag.Parse()
 
@@ -65,7 +66,7 @@ func main() {
 
 		// Given prefix.
 		// TODO: Make it configurable.
-		dst := "VCH_" + tags.ToFileName()
+		dst := *prefix + "_" + tags.ToFileName()
 		if !*dry {
 			os.Chmod(dst, 0644)
 			os.Chtimes(dst, tags.DateTimeOriginal.Time, tags.DateTimeOriginal.Time)
