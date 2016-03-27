@@ -63,7 +63,9 @@ func main() {
 			continue
 		}
 
-		dst := tags.ToFileName()
+		// Given prefix.
+		// TODO: Make it configurable.
+		dst := "VCH_" + tags.ToFileName()
 		if !*dry {
 			os.Chmod(dst, 0644)
 			os.Chtimes(dst, tags.DateTimeOriginal.Time, tags.DateTimeOriginal.Time)
@@ -85,14 +87,12 @@ type CustomTime struct {
 
 func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
 	t := strings.Replace(string(b), "\"", "", -1)
-	fmt.Println(t)
-	ct.Time, err = time.Parse(time.RFC1123Z, t)
+	ct.Time, err = time.Parse("2006:01:02 15:04:05", t)
 	return err
 }
 
 func ReadTags(filename string) (*ExifTags, error) {
-	// Print dates in RFC1123Z format.
-	out, err := exec.Command("exiftool", "-j", "-d", "%a, %d %b %Y %T %z", filename).Output()
+	out, err := exec.Command("exiftool", "-j", filename).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -125,22 +125,23 @@ func (tags *ExifTags) Valid() error {
 }
 
 func (tags *ExifTags) ToFileName() string {
-	name := "VCH" // Given prefix. TODO: Configurable?
-	ext := strings.ToLower(filepath.Ext(tags.FileName))
-
 	t := tags.DateTimeOriginal.Format(time.RFC3339)
-	name += "_" + strings.Replace(t, ":", ".", -1)
+	// Remove : from the file name because of Windows.
+	name := strings.Replace(t, ":", ".", -1)
 
 	if tags.Model != "" {
 		name += "_" + strings.Replace(tags.Model, " ", "", -1)
 	}
 
+	ext := strings.ToLower(filepath.Ext(tags.FileName))
 	n := tags.FileNumber
 	if n == "" {
 		base := strings.TrimSuffix(tags.FileName, ext)
-		n = strings.TrimPrefix(base, strings.TrimRightFunc(base, func(r rune) bool {
+		// base without the longest sequence of digits on the right.
+		basePrefix := strings.TrimRightFunc(base, func(r rune) bool {
 			return unicode.IsDigit(r)
-		}))
+		})
+		n = strings.TrimPrefix(base, basePrefix)
 	}
 	if n != "" {
 		name += "_" + n
