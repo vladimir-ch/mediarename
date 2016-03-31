@@ -122,13 +122,23 @@ func ReadTags(filename string) (*ExifTags, error) {
 
 type ExifTags struct {
 	DateTimeOriginal string
-	FileName         string
-	FileNumber       string
-	Model            string
+	CreateDate       string
+	MediaCreateDate  string
+
+	FileName   string
+	FileNumber string
+	Model      string
 }
 
 func (tags *ExifTags) TimeIn(loc *time.Location) (time.Time, error) {
-	t, err := time.ParseInLocation("2006:01:02 15:04:05", tags.DateTimeOriginal, loc)
+	date := tags.DateTimeOriginal
+	if date == "" {
+		date = tags.CreateDate
+	}
+	if date == "" {
+		date = tags.MediaCreateDate
+	}
+	t, err := time.ParseInLocation("2006:01:02 15:04:05", date, loc)
 	if err != nil {
 		return time.Time{}, err
 	}
