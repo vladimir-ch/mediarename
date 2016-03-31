@@ -18,12 +18,20 @@ import (
 	"unicode"
 )
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "usage: mediarename [options]\n")
+	fmt.Fprintf(os.Stderr, "options:\n")
+	flag.PrintDefaults()
+	os.Exit(2)
+}
+
 func main() {
 	var (
 		dry    = flag.Bool("n", false, "Dry run")
 		prefix = flag.String("p", "VCH", "File name prefix")
-		l      = flag.String("l", "UTC", "Shooting location")
+		tz     = flag.String("tz", "UTC", "Time zone")
 	)
+	flag.Usage = usage
 	flag.Parse()
 
 	_, err := exec.LookPath("exiftool")
@@ -31,7 +39,7 @@ func main() {
 		log.Fatal("exiftool not found")
 	}
 
-	loc, err := time.LoadLocation(*l)
+	loc, err := time.LoadLocation(*tz)
 	if err != nil {
 		log.Fatal(err)
 	}
