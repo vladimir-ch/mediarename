@@ -26,6 +26,8 @@ func usage() {
 }
 
 func main() {
+	log.SetPrefix("mediarename: ")
+	log.SetFlags(0)
 	var (
 		dry    = flag.Bool("n", false, "Dry run")
 		prefix = flag.String("p", "VCH", "File name prefix")
@@ -68,7 +70,7 @@ func main() {
 
 		tags, err := ReadTags(src)
 		if err != nil {
-			fmt.Printf("error reading tags from %v: %v\n", src, err)
+			log.Printf("error reading tags from %v (%v)\n", src, err)
 			continue
 		}
 		if tags.FileName == "" {
@@ -77,19 +79,19 @@ func main() {
 
 		dst, err := tags.ToFileName(loc)
 		if err != nil {
-			fmt.Printf("error creating destination file name for %s (%v)\n", src, err)
+			log.Printf("error creating destination file name for %s (%v)\n", src, err)
 			continue
 		}
 
 		t, err := tags.TimeIn(loc)
 		if err != nil {
-			fmt.Printf("error formatting time for %s (%v)\n", src, err)
+			log.Printf("error formatting time for %s (%v)\n", src, err)
 			continue
 		}
 
 		dst = *prefix + "_" + dst
 		if _, err = os.Stat(dst); err == nil {
-			fmt.Println("Destination file", dst, "exists, skipping.")
+			log.Printf("destination file %s exists, skipping.", dst)
 			if !*dry {
 				os.Chmod(dst, 0644)
 				os.Chtimes(dst, t, t)
@@ -101,7 +103,7 @@ func main() {
 			os.Chmod(dst, 0644)
 			os.Chtimes(dst, t, t)
 		}
-		fmt.Println("Renamed", src, "to", dst)
+		log.Printf("renamed %v to %v", src, dst)
 	}
 }
 
