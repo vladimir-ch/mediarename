@@ -57,10 +57,9 @@ func main() {
 		}
 
 		src := file.Name()
-		ext := strings.ToLower(filepath.Ext(src))
 
 		var supported bool
-		switch ext {
+		switch strings.ToLower(filepath.Ext(src)) {
 		case ".jpg", ".dng", ".cr2", ".mov", ".mp4":
 			supported = true
 		}
@@ -160,7 +159,7 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 		name += "_" + strings.Replace(tags.Model, " ", "", -1)
 	}
 
-	ext := strings.ToLower(filepath.Ext(tags.FileName))
+	ext := filepath.Ext(tags.FileName)
 	n := tags.FileNumber
 	if n == "" {
 		base := strings.TrimSuffix(tags.FileName, ext)
@@ -174,5 +173,5 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 		name += "_" + n
 	}
 
-	return name + ext, nil
+	return name + strings.ToLower(ext), nil
 }
