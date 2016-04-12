@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -57,17 +58,6 @@ func main() {
 		}
 
 		src := file.Name()
-		ext := strings.ToLower(filepath.Ext(src))
-
-		var supported bool
-		switch ext {
-		case ".jpg", ".dng", ".cr2", ".mov", ".mp4":
-			supported = true
-		}
-		if !supported {
-			continue
-		}
-
 		tags, err := ReadTags(src)
 		if err != nil {
 			log.Printf("error reading tags from %v (%v)\n", src, err)
@@ -82,6 +72,9 @@ func main() {
 			log.Printf("error creating destination file name for %s (%v)\n", src, err)
 			continue
 		}
+		if *prefix != "" {
+			dst = *prefix + "_" + dst
+		}
 
 		t, err := tags.TimeIn(loc)
 		if err != nil {
@@ -89,9 +82,6 @@ func main() {
 			continue
 		}
 
-		if *prefix != "" {
-			dst = *prefix + "_" + dst
-		}
 		if _, err = os.Stat(dst); err == nil {
 			log.Printf("destination file %s exists, skipping.", dst)
 			if !*dry {
@@ -112,7 +102,7 @@ func main() {
 func ReadTags(filename string) (*ExifTags, error) {
 	out, err := exec.Command("exiftool", "-j", filename).Output()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("exiftool error")
 	}
 
 	var tags []ExifTags
@@ -142,6 +132,10 @@ func (tags *ExifTags) TimeIn(loc *time.Location) (time.Time, error) {
 	if date == "" {
 		date = tags.MediaCreateDate
 	}
+	if date == "" {
+		return time.Time{}, errors.New("no date tag found")
+	}
+
 	t, err := time.ParseInLocation("2006:01:02 15:04:05", date, loc)
 	if err != nil {
 		return time.Time{}, err
@@ -155,26 +149,31 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 		return "", err
 	}
 
-	ft := t.Format(time.RFC3339)
-	name := strings.Replace(ft, ":", ".", -1) // Remove : from the file name because of Windows.
+	fields := []string{t.Format(time.RFC3339)}
 
 	if tags.Model != "" {
-		name += "_" + strings.Replace(tags.Model, " ", "", -1)
+		fields = append(fields, tags.Model)
 	}
 
 	ext := strings.ToLower(filepath.Ext(tags.FileName))
-	n := tags.FileNumber
-	if n == "" {
+	filenum := tags.FileNumber
+	if filenum == "" {
+		// FileNumber tag doesn't exist, try to extract a number from
+		// the file name.
+
 		base := strings.TrimSuffix(tags.FileName, ext)
 		// base without the longest sequence of digits on the right.
 		basePrefix := strings.TrimRightFunc(base, func(r rune) bool {
 			return unicode.IsDigit(r)
 		})
-		n = strings.TrimPrefix(base, basePrefix)
+		filenum = strings.TrimPrefix(base, basePrefix)
 	}
-	if n != "" {
-		name += "_" + n
+	if filenum != "" {
+		fields = append(fields, filenum)
 	}
 
-	return name + ext, nil
+	filename := strings.Join(fields, "_")
+	filename = strings.Replace(filename, ":", ".", -1) // Remove : from the file name because of Windows.
+	filename = strings.Replace(filename, " ", "", -1)  // Remove spaces from the filename.
+	return filename + ext, nil
 }
