@@ -30,7 +30,7 @@ func main() {
 	log.SetFlags(0)
 	var (
 		dry    = flag.Bool("n", false, "Dry run")
-		prefix = flag.String("p", "VCH", "File name prefix")
+		prefix = flag.String("p", "", "File name prefix")
 		tz     = flag.String("tz", "UTC", "Time zone")
 	)
 	flag.Usage = usage
@@ -89,7 +89,9 @@ func main() {
 			continue
 		}
 
-		dst = *prefix + "_" + dst
+		if *prefix != "" {
+			dst = *prefix + "_" + dst
+		}
 		if _, err = os.Stat(dst); err == nil {
 			log.Printf("destination file %s exists, skipping.", dst)
 			if !*dry {
