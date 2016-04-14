@@ -121,7 +121,9 @@ type ExifTags struct {
 
 	FileName   string
 	FileNumber string
-	Model      string
+
+	Model       string
+	Information string
 }
 
 func (tags *ExifTags) TimeIn(loc *time.Location) (time.Time, error) {
@@ -151,8 +153,14 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 
 	fields := []string{t.Format(time.RFC3339)}
 
-	if tags.Model != "" {
-		fields = append(fields, tags.Model)
+	model := tags.Model
+	if model == "" {
+		// For example MOV files from Ricoh WG-M1 store the model in
+		// Information.
+		model = tags.Information
+	}
+	if model != "" {
+		fields = append(fields, model)
 	}
 
 	ext := strings.ToLower(filepath.Ext(tags.FileName))
@@ -173,7 +181,8 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 	}
 
 	filename := strings.Join(fields, "_")
-	filename = strings.Replace(filename, ":", ".", -1) // Remove : from the file name because of Windows.
-	filename = strings.Replace(filename, " ", "", -1)  // Remove spaces from the filename.
+	filename = strings.Replace(filename, ":", ".", -1)      // Remove : from the file name because of Windows.
+	filename = strings.Replace(filename, " ", "", -1)       // Remove spaces from the filename.
+	filename = strings.Replace(filename, string(0), "", -1) // Remove zero bytes.
 	return filename + ext, nil
 }
