@@ -163,18 +163,11 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 		fields = append(fields, model)
 	}
 
-	ext := strings.ToLower(filepath.Ext(tags.FileName))
 	filenum := tags.FileNumber
 	if filenum == "" {
 		// FileNumber tag doesn't exist, try to extract a number from
 		// the file name.
-
-		base := strings.TrimSuffix(tags.FileName, ext)
-		// base without the longest sequence of digits on the right.
-		basePrefix := strings.TrimRightFunc(base, func(r rune) bool {
-			return unicode.IsDigit(r)
-		})
-		filenum = strings.TrimPrefix(base, basePrefix)
+		filenum = fileNumberFromPath(tags.FileName)
 	}
 	if filenum != "" {
 		fields = append(fields, filenum)
@@ -184,5 +177,14 @@ func (tags *ExifTags) ToFileName(loc *time.Location) (string, error) {
 	filename = strings.Replace(filename, ":", ".", -1)      // Remove : from the file name because of Windows.
 	filename = strings.Replace(filename, " ", "", -1)       // Remove spaces from the filename.
 	filename = strings.Replace(filename, string(0), "", -1) // Remove zero bytes.
+	ext := strings.ToLower(filepath.Ext(tags.FileName))
 	return filename + ext, nil
+}
+
+func fileNumberFromPath(path string) string {
+	base := strings.TrimSuffix(path, filepath.Ext(path))
+	prefix := strings.TrimRightFunc(base, func(r rune) bool {
+		return unicode.IsDigit(r)
+	})
+	return strings.TrimPrefix(base, prefix)
 }
