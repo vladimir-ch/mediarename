@@ -118,6 +118,7 @@ type ExifTags struct {
 	DateTimeOriginal string
 	CreateDate       string
 	MediaCreateDate  string
+	ModifyDate       string
 
 	FileName   string
 	FileNumber string
@@ -133,6 +134,9 @@ func (tags *ExifTags) TimeIn(loc *time.Location) (time.Time, error) {
 	}
 	if date == "" {
 		date = tags.MediaCreateDate
+	}
+	if date == "" {
+		date = tags.ModifyDate
 	}
 	if date == "" {
 		return time.Time{}, errors.New("no date tag found")
